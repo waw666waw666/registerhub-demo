@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN" data-palette="graphite">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/png" sizes="64x64" href="../favicon-community.png?v=userbolt2" />
+    <link rel="icon" type="image/svg+xml" href="../logo-community.svg?v=userbolt2" />
+    <link rel="shortcut icon" type="image/x-icon" href="./favicon.ico?v=userbolt2" />
+    <title>RegisterHub · 在线交互演示 (Studio UI)</title>
+    <meta name="description" content="RegisterHub 开源社区工作台纯前端在线演示：对齐 AutoRegister Studio 6 套主题与实时流式 Markdown AI 对话。" />
+    <meta property="og:title" content="RegisterHub · 在线交互演示" />
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('ar_studio_theme') || 'dark';
+          var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var doc = document.documentElement;
+          if (dark) doc.classList.add('dark');
+          doc.style.colorScheme = dark ? 'dark' : 'light';
+          if (!localStorage.getItem('ar_studio_prefs_v1')) { localStorage.setItem('ar_studio_palette', 'mocha'); localStorage.setItem('ar_studio_prefs_v1', JSON.stringify({ theme: 'dark', palette: 'mocha', sidebarStyle: 'inset', density: 'comfortable', sidebarCollapsed: false, autoRefresh: false })); }
+          var pal = localStorage.getItem('ar_studio_palette') || 'mocha';
+          var rawPrefs = localStorage.getItem('ar_studio_prefs_v1');
+          if (rawPrefs) {
+            var p = JSON.parse(rawPrefs);
+            if (p && (p.density === 'compact' || p.density === 'comfortable')) {
+              doc.dataset.density = p.density;
+            }
+            if (p && typeof p.palette === 'string' && p.palette) {
+              pal = p.palette;
+            }
+          }
+          if (pal === 'gruvbox') pal = 'sakura';
+          doc.dataset.palette = pal;
+        } catch (e) {}
+      })();
+    </script>
+    <script>window.__RH_STUDIO_DEMO__ = true;</script>
+    <script src="./demo-adapters.js?v=2"></script>
+    <script src="./demo-studio-mock.js?v=2"></script>
+
+    <script type="module" crossorigin src="./assets/index-CdOhVpiy.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/react-DIei6r0b.js">
+    <link rel="modulepreload" crossorigin href="./assets/icons-YwUH88AD.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-BdHqq4Hh.css">
+  </head>
+  <body class="antialiased selection:bg-zinc-800 selection:text-white dark:selection:bg-zinc-200 dark:selection:text-zinc-900">
+    <div id="root"></div>
+  </body>
+</html>
