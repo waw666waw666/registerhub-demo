@@ -422,22 +422,49 @@
         notify: false,
         pro_sites: true,
         pro_adapters: true,
-        adapter_editor: false,
+        adapter_editor: true,
         scheduler: false,
         proxy_import: false,
         accounts: true,
         accounts_delete: true,
         tools: true,
-        tools_extras: false,
+        tools_extras: true,
         password_change: false,
         ai_agent: true,
-        builtin_mail: false,
-        builtin_proxies: false,
+        builtin_mail: true,
+        builtin_proxies: true,
         single_thread_only: true,
         demo_mode: true,
         github_url: 'https://github.com/waw666waw666/RegisterHub',
       },
     },
+    builtinMailSeq: 7,
+    builtinMail: [
+      { id: 1, email: 'hannah.callahan@outlook-demo.test', provider_kind: 'outlook_oauth', protocol: 'graph', client_id: '9e5f94bc-e8a4-4e73-b8be-63364c29d753', has_password: true, has_refresh_token: true, has_link_url: false, imap_host: 'outlook.office365.com', imap_port: 993, status: 'valid', leased: false, leased_by: '', use_count: 2, last_checked_at: Math.floor(Date.now() / 1000) - 300, last_error: '', created_at: Math.floor(Date.now() / 1000) - 86400 },
+      { id: 2, email: 'caleb.sorensen@outlook-demo.test', provider_kind: 'outlook_oauth', protocol: 'imap_xoauth2', client_id: '9e5f94bc-e8a4-4e73-b8be-63364c29d753', has_password: true, has_refresh_token: true, has_link_url: false, imap_host: 'outlook.office365.com', imap_port: 993, status: 'valid', leased: false, leased_by: '', use_count: 1, last_checked_at: Math.floor(Date.now() / 1000) - 600, last_error: '', created_at: Math.floor(Date.now() / 1000) - 72000 },
+      { id: 3, email: 'nadia.cloud91@icloud-demo.test', provider_kind: 'icloud_link', protocol: 'icloud_link', client_id: '', has_password: false, has_refresh_token: false, has_link_url: true, imap_host: '', imap_port: 0, status: 'valid', leased: false, leased_by: '', use_count: 0, last_checked_at: Math.floor(Date.now() / 1000) - 420, last_error: '', created_at: Math.floor(Date.now() / 1000) - 54000 },
+      { id: 4, email: 'owen.fletcher@icloud-demo.test', provider_kind: 'icloud_link', protocol: 'icloud_link', client_id: '', has_password: false, has_refresh_token: false, has_link_url: true, imap_host: '', imap_port: 0, status: 'valid', leased: false, leased_by: '', use_count: 0, last_checked_at: Math.floor(Date.now() / 1000) - 900, last_error: '', created_at: Math.floor(Date.now() / 1000) - 42000 },
+      { id: 5, email: 'claire.mercer@demo-imap.example.org', provider_kind: 'imap', protocol: 'imap_plain', client_id: '', has_password: true, has_refresh_token: false, has_link_url: false, imap_host: 'imap.example.org', imap_port: 993, status: 'valid', leased: false, leased_by: '', use_count: 1, last_checked_at: Math.floor(Date.now() / 1000) - 1200, last_error: '', created_at: Math.floor(Date.now() / 1000) - 36000 },
+      { id: 6, email: 'trevor.new@outlook-demo.test', provider_kind: 'outlook_oauth', protocol: 'unknown', client_id: '9e5f94bc-e8a4-4e73-b8be-63364c29d753', has_password: true, has_refresh_token: true, has_link_url: false, imap_host: 'outlook.office365.com', imap_port: 993, status: 'unknown', leased: false, leased_by: '', use_count: 0, last_checked_at: 0, last_error: '', created_at: Math.floor(Date.now() / 1000) - 1800 },
+    ],
+    builtinProxySeq: 7,
+    builtinProxySourceSeq: 2,
+    builtinProxies: [
+      { id: 1, kind: 'residential_gateway', label: 'Smartproxy US Sticky 住宅网关', scheme: 'http', host: 'gate.demo-residential.example', port: 10001, masked_url: 'http://***@gate.demo-residential.example:10001', has_auth: true, preset: 'smartproxy', session_template: '{user}-country-{country}-session-{session}', country: 'US', enabled: true, available: true, browser_compatible: true, exit_ip: '198.51.100.42', residential: true, score: 98, grade: 'S', latency_ms: 142, last_checked_at: Math.floor(Date.now() / 1000) - 240, last_error: '' },
+      { id: 2, kind: 'static', label: 'us-west-res-01.example:8080', scheme: 'http', host: 'us-west-res-01.example', port: 8080, masked_url: 'http://***@us-west-res-01.example:8080', has_auth: true, preset: '', session_template: '', country: 'US', enabled: true, available: true, browser_compatible: true, exit_ip: '198.51.100.88', residential: true, score: 96, grade: 'S', latency_ms: 186, last_checked_at: Math.floor(Date.now() / 1000) - 360, last_error: '' },
+      { id: 3, kind: 'static', label: 'ca-tor-isp-02.example:8080', scheme: 'http', host: 'ca-tor-isp-02.example', port: 8080, masked_url: 'http://***@ca-tor-isp-02.example:8080', has_auth: true, preset: '', session_template: '', country: 'CA', enabled: true, available: true, browser_compatible: true, exit_ip: '203.0.113.19', residential: true, score: 95, grade: 'S', latency_ms: 214, last_checked_at: Math.floor(Date.now() / 1000) - 410, last_error: '' },
+      { id: 4, kind: 'static', label: 'uk-lon-03.example:1080', scheme: 'socks5', host: 'uk-lon-03.example', port: 1080, masked_url: 'socks5://uk-lon-03.example:1080', has_auth: false, preset: '', session_template: '', country: 'GB', enabled: true, available: true, browser_compatible: true, exit_ip: '203.0.113.74', residential: false, score: 84, grade: 'A', latency_ms: 268, last_checked_at: Math.floor(Date.now() / 1000) - 520, last_error: '' },
+      { id: 5, kind: 'api_extract', label: '短效住宅提取 #1', scheme: 'http', host: '192.0.2.55', port: 23001, masked_url: 'http://192.0.2.55:23001', has_auth: false, preset: '', session_template: '', country: 'JP', source_id: 1, expires_at: Math.floor(Date.now() / 1000) + 780, enabled: true, available: true, browser_compatible: true, exit_ip: '192.0.2.55', residential: true, score: 92, grade: 'S', latency_ms: 164, last_checked_at: Math.floor(Date.now() / 1000) - 180, last_error: '' },
+      { id: 6, kind: 'static', label: 'sg-node-unprobed.example:8080', scheme: 'http', host: 'sg-node-unprobed.example', port: 8080, masked_url: 'http://***@sg-node-unprobed.example:8080', has_auth: true, preset: '', session_template: '', country: 'SG', enabled: true, available: false, browser_compatible: true, exit_ip: '', residential: false, score: 0, grade: '', latency_ms: 0, last_checked_at: 0, last_error: '' },
+    ],
+    builtinProxySources: [
+      { id: 1, kind: 'api_extract', label: '示例短效代理 API 提取源', masked_url: 'https://api.proxy-demo.example/get?num=5&format=txt', default_scheme: 'http', min_available: 3, ttl_minutes: 15, enabled: true, last_pulled_at: Math.floor(Date.now() / 1000) - 180, last_count: 1, last_error: '', active_entries: 1 },
+    ],
+    agentSkills: [
+      { id: '01_protocol_first', name: '01_protocol_first.md', title: '协议先行与接口嗅探', enabled: true, size_kb: 1.8, content: '# 协议先行与接口嗅探\n\n优先通过网络抓包或 JS 分析定位注册与提 Key 的真实 REST 接口，仅在人机校验步骤使用浏览器。' },
+      { id: '02_stealth_browser', name: '02_stealth_browser.md', title: '环境自洽与拟人交互', enabled: true, size_kb: 1.6, content: '# 环境自洽与拟人交互\n\n启用原生 Chrome 通道与 patchright 隐匿内核，表单输入走拟人键入与阶段守门员断言。' },
+      { id: '03_mail_otp', name: '03_mail_otp.md', title: '多通道接码与验证码提取', enabled: true, size_kb: 1.4, content: '# 多通道接码与验证码提取\n\n优先从内置邮箱池（Outlook OAuth2 / iCloud / IMAP）租借邮箱并按时间窗增量拉取 OTP。' },
+    ],
     adapters: rawAdapters.map((a) => ({ ...a })),
     geometry: JSON.parse(JSON.stringify(rawGeometry)),
     dailyTrend: trendSeed.map(([s, f], idx) => ({
@@ -489,10 +516,10 @@
     jobSeq: 104,
     settings: {
       edition: 'community',
-      proxy_mode: 'proxy',
+      proxy_mode: 'builtin',
       proxy_residential_url: 'http://127.0.0.1:7897',
       proxy_cdp_endpoint: '',
-      mail_provider: 'tempmail',
+      mail_provider: 'builtin',
       mail_hub_api: '',
       mail_cf_wildcard_domain: '',
       mail_imap_server: 'imap.example.com',
@@ -1247,9 +1274,305 @@
       return jsonResponse({ ok: true, inbox_messages: 12, latency_ms: 165, detail: 'IMAP BODY.PEEK[] 模拟测试成功' });
     }
 
+    // 5b. Built-in Mail Pool (/api/mail/builtin/*)
+    const calcMailStats = () => {
+      const by_protocol = {};
+      const by_provider = {};
+      let valid = 0, unknown = 0, dead = 0, leased = 0;
+      for (const a of state.builtinMail) {
+        if (a.status === 'valid') valid += 1;
+        else if (a.status === 'dead') dead += 1;
+        else unknown += 1;
+        if (a.leased) leased += 1;
+        by_protocol[a.protocol || 'unknown'] = (by_protocol[a.protocol || 'unknown'] || 0) + 1;
+        by_provider[a.provider_kind || 'imap'] = (by_provider[a.provider_kind || 'imap'] || 0) + 1;
+      }
+      return { total: state.builtinMail.length, valid, unknown, dead, leased, available: Math.max(0, valid - leased), by_protocol, by_provider };
+    };
+    const MAIL_FORMATS = [
+      { id: 'auto', label: '智能无脑混合识别（推荐）', example: 'user@outlook.com----Pass123----client_id----refresh_token' },
+      { id: 'outlook_4col', label: 'Outlook OAuth2 四段', example: 'user@outlook.com----Pass123----9e5f94bc-...----M.C519_...' },
+      { id: 'icloud_link', label: 'iCloud 接码链接', example: 'user@icloud.com----https://mail-link.example/check?id=...' },
+      { id: 'imap_plain', label: '通用 IMAP 账号', example: 'user@example.org----app_password----imap.example.org----993' },
+    ];
+    if (method === 'GET' && path === '/api/mail/builtin/accounts') {
+      const st = (searchParams.get('status') || 'all').toLowerCase();
+      const pk = (searchParams.get('provider_kind') || 'all').toLowerCase();
+      const q = (searchParams.get('query') || '').trim().toLowerCase();
+      let list = state.builtinMail.slice();
+      if (st && st !== 'all') list = list.filter((x) => x.status === st);
+      if (pk && pk !== 'all') list = list.filter((x) => x.provider_kind === pk);
+      if (q) list = list.filter((x) => `${x.email} ${x.protocol} ${x.provider_kind} ${x.last_error}`.toLowerCase().includes(q));
+      return jsonResponse({ total: list.length, items: list, stats: calcMailStats(), formats: MAIL_FORMATS });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/preview') {
+      const lines = String(body?.text || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      const preview = [];
+      const summary = {};
+      for (const line of lines.slice(0, 20)) {
+        const parts = line.split(/----|[\t|,;]/).map((s) => s.trim()).filter(Boolean);
+        const em = parts.find((p) => p.includes('@')) || `demo_${randHex(4)}@outlook-demo.test`;
+        const isIc = line.includes('http://') || line.includes('https://') || em.includes('icloud');
+        const isOut = !isIc && (em.includes('outlook') || em.includes('hotmail') || parts.length >= 4);
+        const kind = isIc ? 'icloud_link' : isOut ? 'outlook_oauth' : 'imap';
+        const label = isIc ? 'iCloud 接码链接' : isOut ? 'Outlook OAuth2' : '通用 IMAP';
+        summary[label] = (summary[label] || 0) + 1;
+        preview.push({ email: em.toLowerCase(), provider_kind: kind, detected_label: label, client_id: isOut ? '9e5f94bc-demo' : '', refresh_token_masked: isOut ? 'M.C519...demo' : '', link_url_masked: isIc ? 'https://mail-link.example/...demo' : '', has_password: parts.length >= 2, imap_host: isOut ? 'outlook.office365.com' : 'imap.example.org' });
+      }
+      return jsonResponse({ format: body?.format || 'auto', valid_count: preview.length, error_count: 0, summary, preview, errors: [] });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/import') {
+      const lines = String(body?.text || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      const imported_emails = [];
+      let skipped = 0;
+      for (const line of lines) {
+        const parts = line.split(/----|[\t|,;]/).map((s) => s.trim()).filter(Boolean);
+        const em = (parts.find((p) => p.includes('@')) || '').toLowerCase();
+        if (!em) continue;
+        if (state.builtinMail.some((x) => x.email === em) && !body?.overwrite_existing) { skipped += 1; continue; }
+        const isIc = line.includes('http://') || line.includes('https://') || em.includes('icloud');
+        const isOut = !isIc && (em.includes('outlook') || em.includes('hotmail') || parts.length >= 4);
+        state.builtinMail = state.builtinMail.filter((x) => x.email !== em);
+        state.builtinMail.unshift({
+          id: state.builtinMailSeq++, email: em, provider_kind: isIc ? 'icloud_link' : isOut ? 'outlook_oauth' : 'imap',
+          protocol: isIc ? 'icloud_link' : isOut ? 'graph' : 'imap_plain', client_id: isOut ? '9e5f94bc-demo' : '',
+          has_password: true, has_refresh_token: isOut, has_link_url: isIc, imap_host: isOut ? 'outlook.office365.com' : 'imap.example.org', imap_port: 993,
+          status: 'unknown', leased: false, leased_by: '', use_count: 0, last_checked_at: 0, last_error: '', created_at: Math.floor(Date.now() / 1000),
+        });
+        imported_emails.push(em);
+      }
+      return jsonResponse({ imported: imported_emails.length, updated: 0, skipped, errors: [], imported_emails, stats: calcMailStats() });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/verify') {
+      const reqEmails = Array.isArray(body?.emails) && body.emails.length ? new Set(body.emails.map((e) => String(e).toLowerCase())) : null;
+      const targets = reqEmails ? state.builtinMail.filter((x) => reqEmails.has(x.email)) : state.builtinMail.slice(0, Number(body?.limit || 50));
+      const nowS = Math.floor(Date.now() / 1000);
+      const results = targets.map((a) => {
+        a.status = 'valid';
+        if (a.protocol === 'unknown') a.protocol = a.provider_kind === 'icloud_link' ? 'icloud_link' : a.provider_kind === 'outlook_oauth' ? 'graph' : 'imap_plain';
+        a.last_checked_at = nowS;
+        a.last_error = '';
+        return { email: a.email, ok: true, status: 'valid', protocol: a.protocol, error: '' };
+      });
+      return jsonResponse({ checked: results.length, valid: results.length, dead: 0, results, stats: calcMailStats() });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/inbox') {
+      const em = String(body?.email || '').toLowerCase();
+      const otp = String(randInt(100000, 999999));
+      return jsonResponse({
+        email: em, cached: false, elapsed_ms: randInt(95, 210),
+        messages: [
+          {
+            id: 'msg_demo_1', from: 'no-reply@acmespeech.example.com', subject: `Your AcmeSpeech verification code is ${otp}`,
+            received_at: nowDateTime(), excerpt: `Use verification code ${otp} within 10 minutes to finish your signup.`, has_html: true,
+            candidates: [{ kind: 'code', value: otp, confidence: 0.99 }],
+          },
+          {
+            id: 'msg_demo_2', from: 'security@nova-api.example.com', subject: 'Confirm your NovaAPI developer account',
+            received_at: `${todayStr} 19:48:12`, excerpt: 'Click the magic link below to activate your workspace.', has_html: true,
+            candidates: [{ kind: 'link', value: 'https://portal.nova-api.example.com/verify?token=demo_tok_94a2', confidence: 0.95 }],
+          },
+        ],
+      });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/message') {
+      const em = String(body?.email || '').toLowerCase();
+      const mid = String(body?.msg_id || 'msg_demo_1');
+      return jsonResponse({
+        id: mid, email: em, from: 'no-reply@acmespeech.example.com', subject: 'Your AcmeSpeech verification code is 482916',
+        date: nowDateTime(), received_at: nowDateTime(), excerpt: 'Verification code: 482916',
+        text: 'Hello,\n\nYour one-time verification code is: 482916\n\n(Simulated inbox message in RegisterHub Pure-Frontend Demo)',
+        html: '<div style="font-family:sans-serif;padding:16px"><h3>Verify your email</h3><p>Your one-time verification code is:</p><div style="font-size:24px;font-weight:700;letter-spacing:4px">482916</div><p style="color:#71717a;font-size:12px">Simulated message · RegisterHub Live Demo</p></div>',
+        candidates: [{ kind: 'code', value: '482916', confidence: 0.99 }],
+      });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/delete') {
+      const rm = new Set((body?.emails || []).map((e) => String(e).toLowerCase()));
+      const before = state.builtinMail.length;
+      state.builtinMail = state.builtinMail.filter((x) => !rm.has(x.email));
+      return jsonResponse({ deleted: before - state.builtinMail.length, stats: calcMailStats() });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/cleanup-dead') {
+      const before = state.builtinMail.length;
+      state.builtinMail = state.builtinMail.filter((x) => x.status !== 'dead');
+      return jsonResponse({ deleted: before - state.builtinMail.length, stats: calcMailStats() });
+    }
+    if (method === 'POST' && path === '/api/mail/builtin/reset') {
+      state.builtinMail.forEach((x) => { x.leased = false; x.leased_by = ''; if (x.status === 'dead') x.status = 'unknown'; });
+      return jsonResponse({ reset: state.builtinMail.length, stats: calcMailStats() });
+    }
+
+    // 5c. Built-in Proxy Pool (/api/proxies/builtin/*)
+    const calcProxyStats = () => {
+      const list = state.builtinProxies;
+      return {
+        total: list.length,
+        enabled: list.filter((x) => x.enabled).length,
+        available: list.filter((x) => x.enabled && x.available).length,
+        static: list.filter((x) => x.kind === 'static').length,
+        residential_gateways: list.filter((x) => x.kind === 'residential_gateway').length,
+        api_extracted: list.filter((x) => x.kind === 'api_extract').length,
+        subscription_nodes: 0,
+        api_sources: state.builtinProxySources.filter((s) => s.kind === 'api_extract').length,
+        subscription_sources: 0,
+        residential: list.filter((x) => x.residential).length,
+        browser_compatible: list.filter((x) => x.enabled && x.available && x.browser_compatible).length,
+      };
+    };
+    const RES_PRESETS = [
+      { id: 'smartproxy', label: 'Smartproxy / Decodo', template: '{user}-country-{country}-session-{session}', hint: 'Sticky Session 住宅网关' },
+      { id: 'iproyal', label: 'IPRoyal Residential', template: '{user}_country-{country}_session-{session}', hint: '按地区与会话粘性出口' },
+      { id: 'oxylabs', label: 'Oxylabs', template: 'customer-{user}-cc-{country}-sessid-{session}', hint: '企业级住宅出口模板' },
+      { id: 'brightdata', label: 'Bright Data', template: '{user}-country-{country}-session-{session}', hint: 'Zone 会话粘性模板' },
+      { id: 'custom', label: '自定义模板', template: '{user}-session-{session}', hint: '自由拼接会话占位符' },
+    ];
+    const DEMO_KERNEL = { running: false, binary_exists: false, binary_label: '社区版不含订阅内核', pid: 0, subscription_count: 0, node_count: 0, available_nodes: 0, started_at: 0, last_error: '' };
+    if (method === 'GET' && path === '/api/proxies/builtin/entries') {
+      return jsonResponse({ items: state.builtinProxies, sources: state.builtinProxySources, stats: calcProxyStats(), presets: RES_PRESETS, kernel: DEMO_KERNEL });
+    }
+    if (method === 'GET' && path === '/api/proxies/builtin/sources') {
+      return jsonResponse({ sources: state.builtinProxySources, kernel: DEMO_KERNEL, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/import') {
+      const scheme = String(body?.default_scheme || 'http');
+      const lines = String(body?.text || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+      let imported = 0;
+      for (const line of lines) {
+        const clean = line.replace(/^[a-z0-9]+:\/\//i, '');
+        const hostPort = clean.includes('@') ? clean.split('@').pop() : clean;
+        const [h, p] = String(hostPort || 'proxy.example:8080').split(':');
+        state.builtinProxies.unshift({
+          id: state.builtinProxySeq++, kind: 'static', label: `${h}:${p || 8080}`, scheme, host: h || 'proxy.example', port: Number(p) || 8080,
+          masked_url: `${scheme}://***@${h}:${p || 8080}`, has_auth: line.includes('@') || line.split(':').length >= 4,
+          preset: '', session_template: '', country: 'US', enabled: true, available: false, browser_compatible: true,
+          exit_ip: '', residential: false, score: 0, grade: '', latency_ms: 0, last_checked_at: 0, last_error: '',
+        });
+        imported += 1;
+      }
+      return jsonResponse({ imported, updated: 0, skipped: 0, errors: [], stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/gateway') {
+      const gwUrl = String(body?.gateway_url || 'http://user:pass@gate.example:10001');
+      const label = String(body?.label || '').trim() || `${body?.preset || 'smartproxy'} 住宅网关`;
+      state.builtinProxies.unshift({
+        id: state.builtinProxySeq++, kind: 'residential_gateway', label, scheme: 'http', host: 'gate.example', port: 10001,
+        masked_url: gwUrl.replace(/:\/\/[^@]+@/, '://***@'), has_auth: true, preset: body?.preset || 'smartproxy',
+        session_template: body?.session_template || '', country: String(body?.country || 'US').toUpperCase(),
+        enabled: true, available: true, browser_compatible: true, exit_ip: `198.51.100.${randInt(10, 240)}`, residential: true,
+        score: 97, grade: 'S', latency_ms: randInt(110, 220), last_checked_at: Math.floor(Date.now() / 1000), last_error: '',
+      });
+      return jsonResponse({ ok: true, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/probe') {
+      const reqIds = Array.isArray(body?.ids) && body.ids.length ? new Set(body.ids.map(Number)) : null;
+      const targets = reqIds ? state.builtinProxies.filter((x) => reqIds.has(x.id)) : state.builtinProxies.filter((x) => x.enabled);
+      const nowS = Math.floor(Date.now() / 1000);
+      const countries = ['US', 'CA', 'GB', 'JP', 'SG'];
+      const results = targets.map((p, idx) => {
+        p.available = true;
+        p.exit_ip = p.exit_ip || `198.51.100.${randInt(20, 240)}`;
+        p.country = p.country || countries[idx % countries.length];
+        p.residential = p.kind === 'residential_gateway' || p.residential || idx % 2 === 0;
+        p.score = p.residential ? randInt(93, 100) : randInt(82, 90);
+        p.grade = p.score >= 90 ? 'S' : 'A';
+        p.latency_ms = randInt(115, 295);
+        p.last_checked_at = nowS;
+        p.last_error = '';
+        return { id: p.id, ok: true, available: true, exit_ip: p.exit_ip, score: p.score, grade: p.grade, latency_ms: p.latency_ms };
+      });
+      return jsonResponse({ checked: results.length, ok: results.length, failed: 0, results, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/toggle') {
+      const ids = new Set((body?.ids || []).map(Number));
+      state.builtinProxies.forEach((p) => { if (ids.has(p.id)) p.enabled = Boolean(body?.enabled); });
+      return jsonResponse({ updated: ids.size, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/delete') {
+      const ids = new Set((body?.ids || []).map(Number));
+      const before = state.builtinProxies.length;
+      state.builtinProxies = state.builtinProxies.filter((p) => !ids.has(p.id));
+      return jsonResponse({ deleted: before - state.builtinProxies.length, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/cleanup-dead') {
+      const before = state.builtinProxies.length;
+      state.builtinProxies = state.builtinProxies.filter((p) => p.available || p.last_checked_at === 0);
+      return jsonResponse({ deleted: before - state.builtinProxies.length, stats: calcProxyStats() });
+    }
+    if (method === 'POST' && path === '/api/proxies/builtin/sources') {
+      const src = {
+        id: state.builtinProxySourceSeq++, kind: body?.kind || 'api_extract', label: body?.label || '自定义 API 提取源',
+        masked_url: String(body?.url || '').replace(/([?&](?:key|token|pass|pwd)=)[^&]+/gi, '$1***'),
+        default_scheme: body?.default_scheme || 'http', min_available: Number(body?.min_available || 3), ttl_minutes: Number(body?.ttl_minutes || 15),
+        enabled: true, last_pulled_at: Math.floor(Date.now() / 1000), last_count: 1, last_error: '', active_entries: 1,
+      };
+      state.builtinProxySources.unshift(src);
+      return jsonResponse({ ok: true, source: src, sources: state.builtinProxySources, stats: calcProxyStats(), kernel: DEMO_KERNEL });
+    }
+    const mPxSrc = path.match(/^\/api\/proxies\/builtin\/sources\/(\d+)(?:\/(toggle|pull))?$/);
+    if (mPxSrc) {
+      const sid = Number(mPxSrc[1]);
+      const act = mPxSrc[2];
+      const src = state.builtinProxySources.find((s) => s.id === sid);
+      if (method === 'DELETE' && !act) {
+        state.builtinProxySources = state.builtinProxySources.filter((s) => s.id !== sid);
+        return jsonResponse({ ok: true, sources: state.builtinProxySources, stats: calcProxyStats(), kernel: DEMO_KERNEL });
+      }
+      if (method === 'POST' && act === 'toggle' && src) {
+        src.enabled = Boolean(body?.enabled);
+        return jsonResponse({ ok: true, sources: state.builtinProxySources, stats: calcProxyStats(), kernel: DEMO_KERNEL });
+      }
+      if (method === 'POST' && act === 'pull' && src) {
+        src.last_pulled_at = Math.floor(Date.now() / 1000);
+        src.last_count = 1;
+        state.builtinProxies.unshift({
+          id: state.builtinProxySeq++, kind: 'api_extract', label: `${src.label} #${state.builtinProxySeq}`, scheme: src.default_scheme || 'http',
+          host: `192.0.2.${randInt(10, 240)}`, port: randInt(20000, 29000), masked_url: `http://192.0.2.${randInt(10, 240)}:23008`,
+          has_auth: false, preset: '', session_template: '', country: 'US', source_id: sid, expires_at: Math.floor(Date.now() / 1000) + src.ttl_minutes * 60,
+          enabled: true, available: true, browser_compatible: true, exit_ip: `192.0.2.${randInt(10, 240)}`, residential: true, score: 94, grade: 'S',
+          latency_ms: randInt(130, 240), last_checked_at: Math.floor(Date.now() / 1000), last_error: '',
+        });
+        return jsonResponse({ ok: true, pulled: 1, sources: state.builtinProxySources, stats: calcProxyStats(), kernel: DEMO_KERNEL });
+      }
+    }
+
     // 6. Tools
     if (method === 'POST' && path === '/api/tools/profile') {
-      return jsonResponse(generateProfile(body?.country, body?.state));
+      const cnt = Math.max(1, Math.min(10, Number(body?.count) || 4));
+      const profiles = Array.from({ length: cnt }, () => {
+        const p = generateProfile(body?.country, body?.state);
+        if (body?.email) p.email = String(body.email).trim();
+        return p;
+      });
+      return jsonResponse({
+        ok: true,
+        count: profiles.length,
+        us_states: ['DE', 'OR', 'MT', 'NH', 'AK', 'CA', 'TX', 'WA', 'CO', 'NY', 'FL', 'IL'],
+        profiles,
+        ...profiles[0],
+      });
+    }
+    if (method === 'POST' && path === '/api/tools/extras') {
+      const kind = String(body?.kind || 'tax').toLowerCase();
+      const cc = String(body?.country || 'US').toUpperCase();
+      const st = String(body?.state || 'DE').toUpperCase();
+      const plat = String(body?.platform || 'win_nvidia').toLowerCase();
+      const digits = (n) => Array.from({ length: n }, () => randInt(0, 9)).join('');
+      let data = {};
+      if (kind === 'tax') {
+        const p1 = String(randInt(10, 98)), p2 = digits(7);
+        data = { country_code: cc, tax_type: cc === 'US' ? 'US EIN (Mock)' : `${cc} VAT / Tax ID (Mock)`, tax_id: `${p1}${p2}`, tax_id_formatted: `${p1}-${p2}`, duns_number: `${digits(2)}-${digits(3)}-${digits(4)}`, company_reg_number: `${st}-${digits(7)}`, vat_number: cc === 'US' ? '' : `${cc}${digits(9)}` };
+      } else if (kind === 'phone') {
+        const a = String(randInt(212, 899)), b = String(randInt(200, 999)), c = digits(4);
+        data = { country_name: cc === 'UK' ? 'United Kingdom' : cc === 'DE' ? 'Germany' : 'United States', country_code: cc === 'UK' ? '+44' : cc === 'DE' ? '+49' : '+1', e164: `+1${a}${b}${c}`, national_number: `${a}${b}${c}`, formatted_national: `(${a}) ${b}-${c}`, carrier_hint: 'Mobile Carrier (Demo)' };
+      } else if (kind === 'idcard') {
+        const g1 = String(randInt(100, 665)), g2 = String(randInt(10, 99)), g3 = digits(4);
+        data = { country_code: cc, state_code: st, id_type: `${cc} Synthetic ID (Mock)`, id_number: `${g1}${g2}${g3}`, id_number_formatted: `${g1}-${g2}-${g3}`, passport_number: `A${digits(8)}`, driver_license: `${st}-D${digits(7)}` };
+      } else {
+        data = plat === 'mac_apple_silicon'
+          ? { os_platform: 'MacIntel', cpu_cores: 10, device_memory_gb: 24, screen_width: 1512, screen_height: 982, device_pixel_ratio: 2, timezone_id: 'America/Los_Angeles', locale: 'en-US', webgl_vendor: 'Apple Inc.', webgl_renderer: 'Apple M3 Pro', audio_sample_rate: 48000 }
+          : { os_platform: 'Win32', cpu_cores: 16, device_memory_gb: 32, screen_width: 1920, screen_height: 1080, device_pixel_ratio: 1.25, timezone_id: 'America/New_York', locale: 'en-US', webgl_vendor: 'Google Inc. (NVIDIA)', webgl_renderer: 'ANGLE (NVIDIA GeForce RTX 4060 Direct3D11)', audio_sample_rate: 48000 };
+      }
+      return jsonResponse({ ok: true, kind, data });
     }
     if (method === 'POST' && path === '/api/tools/card') {
       const cards = generateCards(body?.brand, body?.bin_prefix, body?.count || 6);
@@ -1265,11 +1588,18 @@
       return jsonResponse({ total: state.adapters.length, adapters: state.adapters.map(({ code, ...m }) => m) });
     }
     const mStCode = path.match(/^\/api\/studio\/adapters\/([^/]+)\/code$/);
-    if (method === 'GET' && mStCode) {
+    if (mStCode) {
       const name = decodeURIComponent(mStCode[1]);
       const ad = state.adapters.find((a) => a.name === name);
       if (!ad) return jsonResponse({ error: `Not found: ${name}` }, 404);
-      return jsonResponse({ ok: true, name: ad.name, file: ad.file, code: ad.code });
+      if (method === 'GET') return jsonResponse({ ok: true, name: ad.name, file: ad.file, code: ad.code });
+      if (method === 'POST' || method === 'PUT') {
+        const nextCode = String(body?.code || '');
+        if (!nextCode.trim()) return jsonResponse({ error: '代码内容不能为空' }, 400);
+        ad.code = nextCode;
+        ad.lines = nextCode.split('\n').length;
+        return jsonResponse({ ok: true, name: ad.name, file: ad.file, lines: ad.lines });
+      }
     }
     if (method === 'POST' && path === '/api/studio/har') {
       const res = parseHarClient(String(body?.har_text || ''), body?.site_name);
@@ -1381,13 +1711,25 @@
 
     if (method === 'GET' && path === '/api/agent/config') {
       return jsonResponse({
-        agent: state.agentConfig, available_tools: state.availableTools, skills: [], guard_rules: [], approvals: [],
+        agent: state.agentConfig, available_tools: state.availableTools, skills: state.agentSkills, guard_rules: [], approvals: [],
       });
     }
     if ((method === 'PUT' || method === 'POST') && path === '/api/agent/config') {
       const src = body?.agent || body || {};
       state.agentConfig = { ...state.agentConfig, ...src };
       return jsonResponse({ ok: true, agent: state.agentConfig });
+    }
+    const mSkill = path.match(/^\/api\/agent\/skills\/([^/]+)$/);
+    if (mSkill) {
+      const skid = decodeURIComponent(mSkill[1]);
+      const sk = state.agentSkills.find((x) => x.id === skid || x.name === skid);
+      if (!sk) return jsonResponse({ error: 'Skill not found' }, 404);
+      if (method === 'GET') return jsonResponse({ ok: true, skill: sk, content: sk.content });
+      if (method === 'PUT' || method === 'POST') {
+        if (typeof body?.content === 'string') sk.content = body.content;
+        if (typeof body?.enabled === 'boolean') sk.enabled = body.enabled;
+        return jsonResponse({ ok: true, skill: sk });
+      }
     }
 
     // 11. Agent Sessions
