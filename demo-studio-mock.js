@@ -558,8 +558,38 @@
         catalog_models: ['gpt-5.4-mini', 'gpt-5.4', 'claude-sonnet-4-6', 'claude-opus-4-6', 'deepseek-v4.1-flash-1017', 'deepseek-reasoner', 'gemini-2.5-flash', 'qwen3-coder-plus', 'gpt-4o-mini'],
         health: { status: 'ok', state: 'ok', last_latency_ms: 196 },
       },
+      {
+        id: 'demo_anthropic',
+        name: 'Claude 直连演示通道 (Demo)',
+        format: 'anthropic',
+        model: 'claude-sonnet-4-6',
+        base_url: 'https://api.anthropic-demo.example/v1',
+        proxy_url: '',
+        api_key_hint: 'sk-ant...demo',
+        has_key: true,
+        max_tokens: 8192,
+        max_tokens_field: 'max_tokens',
+        temperature: 0.2,
+        priority: 2,
+        context_window_k: 200,
+        model_context_windows: {},
+        model_reasoning_caps: {},
+        thinking_mode: 'none',
+        reasoning_effort: 'none',
+        streaming: true,
+        active: false,
+        enabled: true,
+        key_count: 1,
+        healthy_key_count: 1,
+        key_pool: [{ id: 'k_demo_2', key_hint: 'sk-ant...demo', state: 'ok', fails: 0 }],
+        pinned_models: ['claude-sonnet-4-6', 'claude-opus-4-6'],
+        catalog_models: ['claude-sonnet-4-6', 'claude-opus-4-6'],
+        health: { status: 'ok', state: 'ok', last_latency_ms: 248 },
+      },
     ],
     activeLlmId: 'community_deepseek',
+    usageRows: [],
+    llmCalls: [],
     agentConfig: {
       name: 'RegisterHub 开源单线程 Agent',
       description: '单线程安全自主注册专家：自动探测表单、审查适配器、试跑 1 号并输出结构化排障报告',
@@ -691,6 +721,650 @@
     ];
   }
   seedAgentSessions();
+
+  // ==================== LLM Token Usage Analytics & Call Log Mock ====================
+  const DEMO_PRICING_RULES = [
+    { re: /deepseek/i, tier: 'DeepSeek V3/V4', inP: 0.27, outP: 1.1, crP: 0.027, cwP: 0.27 },
+    { re: /gpt-5(?:\.\d+)?-mini/i, tier: 'GPT-5 Mini', inP: 0.25, outP: 2.0, crP: 0.025, cwP: 0.25 },
+    { re: /gpt-5/i, tier: 'GPT-5', inP: 1.25, outP: 10.0, crP: 0.125, cwP: 1.25 },
+    { re: /claude-opus/i, tier: 'Claude Opus 4', inP: 15.0, outP: 75.0, crP: 1.5, cwP: 18.75 },
+    { re: /claude-sonnet/i, tier: 'Claude Sonnet 4', inP: 3.0, outP: 15.0, crP: 0.3, cwP: 3.75 },
+    { re: /gemini-2\.5-flash/i, tier: 'Gemini 2.5 Flash', inP: 0.15, outP: 0.6, crP: 0.015, cwP: 0.15 },
+    { re: /gpt-4o-mini/i, tier: 'GPT-4o Mini', inP: 0.15, outP: 0.6, crP: 0.075, cwP: 0.15 },
+  ];
+
+  function splitDemoTokens(inTok, crTok, cwTok, outTok) {
+    const i = Math.max(0, Math.floor(Number(inTok) || 0));
+    const cr = Math.min(i, Math.max(0, Math.floor(Number(crTok) || 0)));
+    const cw = Math.min(Math.max(0, i - cr), Math.max(0, Math.floor(Number(cwTok) || 0)));
+    const unc = Math.max(0, i - cr - cw);
+    const o = Math.max(0, Math.floor(Number(outTok) || 0));
+    return { uncached: unc, cacheRead: cr, cacheWrite: cw, input: unc + cr + cw, output: o, total: unc + cr + cw + o };
+  }
+
+  function estimateDemoCost(model, inTok, crTok, cwTok, outTok) {
+    const m = String(model || '').trim();
+    const sp = splitDemoTokens(inTok, crTok, cwTok, outTok);
+    if (/:free\b/i.test(m)) {
+      return { cost_usd: 0, no_cache_usd: 0, saved_usd: 0, tier: '免费模型', matched: true };
+    }
+    const hit = DEMO_PRICING_RULES.find((r) => r.re.test(m));
+    if (!hit) {
+      return { cost_usd: 0, no_cache_usd: 0, saved_usd: 0, tier: '未匹配标价', matched: false };
+    }
+    const cost = (sp.uncached * hit.inP + sp.cacheRead * hit.crP + sp.cacheWrite * hit.cwP + sp.output * hit.outP) / 1e6;
+    const noCache = (sp.input * hit.inP + sp.output * hit.outP) / 1e6;
+    const saved = Math.max(0, noCache - cost);
+    return { cost_usd: cost, no_cache_usd: noCache, saved_usd: saved, tier: hit.tier, matched: true };
+  }
+
+  function calcCacheHitPct(inTok, crTok) {
+    if (!inTok || inTok <= 0) return 0;
+    return Math.round(Math.min(100, Math.max(0, (crTok / inTok) * 100)) * 10) / 10;
+  }
+
+  function emptyUsageAgg() {
+    return {
+      calls: 0, ok_calls: 0, fail_calls: 0,
+      input_tokens: 0, uncached_input_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0,
+      output_tokens: 0, total_tokens: 0,
+      latency_ms_sum: 0, ttft_ms_sum: 0, ttft_count: 0, tok_s_sum: 0, tok_s_count: 0,
+      estimated_cost_usd: 0, no_cache_cost_usd: 0, cache_saved_usd: 0,
+    };
+  }
+
+  function accumUsageRow(agg, row, ci) {
+    const sp = splitDemoTokens(row.input_tokens, row.cache_read_tokens, row.cache_write_tokens, row.output_tokens);
+    agg.calls += Number(row.calls) || 0;
+    agg.ok_calls += Number(row.ok_calls) || 0;
+    agg.fail_calls += Number(row.fail_calls) || 0;
+    agg.input_tokens += sp.input;
+    agg.uncached_input_tokens += sp.uncached;
+    agg.cache_read_tokens += sp.cacheRead;
+    agg.cache_write_tokens += sp.cacheWrite;
+    agg.output_tokens += sp.output;
+    agg.total_tokens += sp.total;
+    agg.latency_ms_sum += Number(row.latency_ms_sum) || 0;
+    agg.ttft_ms_sum += Number(row.ttft_ms_sum) || 0;
+    agg.ttft_count += Number(row.ttft_count) || 0;
+    agg.tok_s_sum += Number(row.tok_s_sum) || 0;
+    agg.tok_s_count += Number(row.tok_s_count) || 0;
+    agg.estimated_cost_usd += Number(ci.cost_usd) || 0;
+    agg.no_cache_cost_usd += Number(ci.no_cache_usd) || 0;
+    agg.cache_saved_usd += Number(ci.saved_usd) || 0;
+  }
+
+  function finalizeUsageAgg(agg) {
+    const calls = Math.floor(agg.calls);
+    const okCalls = Math.floor(agg.ok_calls);
+    const cost = Number(agg.estimated_cost_usd) || 0;
+    const noCache = Number(agg.no_cache_cost_usd) || 0;
+    const saved = Number(agg.cache_saved_usd) || 0;
+    return {
+      calls,
+      ok_calls: okCalls,
+      fail_calls: Math.floor(agg.fail_calls),
+      success_rate: calls > 0 ? Math.round((okCalls / calls) * 1000) / 10 : 0,
+      input_tokens: Math.floor(agg.input_tokens),
+      uncached_input_tokens: Math.floor(agg.uncached_input_tokens),
+      cache_read_tokens: Math.floor(agg.cache_read_tokens),
+      cache_write_tokens: Math.floor(agg.cache_write_tokens),
+      output_tokens: Math.floor(agg.output_tokens),
+      total_tokens: Math.floor(agg.total_tokens),
+      cache_hit_pct: calcCacheHitPct(agg.input_tokens, agg.cache_read_tokens),
+      avg_latency_ms: calls > 0 ? Math.round((agg.latency_ms_sum / calls) * 10) / 10 : 0,
+      avg_ttft_ms: agg.ttft_count > 0 ? Math.round((agg.ttft_ms_sum / agg.ttft_count) * 10) / 10 : 0,
+      avg_tok_s: agg.tok_s_count > 0 ? Math.round((agg.tok_s_sum / agg.tok_s_count) * 10) / 10 : 0,
+      estimated_cost_usd: Math.round(cost * 10000) / 10000,
+      no_cache_cost_usd: Math.round(noCache * 10000) / 10000,
+      cache_saved_usd: Math.round(saved * 10000) / 10000,
+      cache_savings_pct: noCache > 0 ? Math.round((saved / noCache) * 1000) / 10 : 0,
+    };
+  }
+
+  function computeHeatmapLevels(values) {
+    const pos = values.filter((v) => v > 0).sort((a, b) => a - b);
+    if (!pos.length) return values.map(() => 0);
+    const q = (p) => pos[Math.min(pos.length - 1, Math.floor((pos.length - 1) * p))];
+    const t1 = q(0.25), t2 = q(0.5), t3 = q(0.75);
+    return values.map((v) => {
+      if (v <= 0) return 0;
+      if (v <= t1) return 1;
+      if (v <= t2) return 2;
+      if (v <= t3) return 3;
+      return 4;
+    });
+  }
+
+  function fmtDateYmd(d) {
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  }
+
+  function fmtHourKey(d) {
+    return `${fmtDateYmd(d)} ${pad2(d.getHours())}`;
+  }
+
+  function seedDemoUsage() {
+    const now = new Date();
+    const rows = [];
+    const calls = [];
+    const specs = [
+      { profile_id: 'community_deepseek', profile_name: '多模型聚合演示通道 (Demo)', format: 'openai', model: 'deepseek-v4.1-flash-1017', session_id: 'ag_demo_acmespeech', baseIn: 148000, hitRatio: 0.93, cwRatio: 0.0, outRatio: 0.022, ttft: 640, tokS: 228 },
+      { profile_id: 'community_deepseek', profile_name: '多模型聚合演示通道 (Demo)', format: 'openai', model: 'gpt-5.4-mini', session_id: 'ag_demo_slider', baseIn: 68000, hitRatio: 0.81, cwRatio: 0.0, outRatio: 0.036, ttft: 520, tokS: 168 },
+      { profile_id: 'demo_anthropic', profile_name: 'Claude 直连演示通道 (Demo)', format: 'anthropic', model: 'claude-sonnet-4-6', session_id: 'ag_demo_acmespeech', baseIn: 46000, hitRatio: 0.84, cwRatio: 0.05, outRatio: 0.042, ttft: 890, tokS: 116 },
+      { profile_id: 'community_deepseek', profile_name: '多模型聚合演示通道 (Demo)', format: 'openai', model: 'gemini-2.5-flash', session_id: 'ag_demo_novaapi', baseIn: 32000, hitRatio: 0.68, cwRatio: 0.0, outRatio: 0.031, ttft: 410, tokS: 254 },
+    ];
+
+    // Seed 60 days of realistic daily activity (higher density in last 14 days & last 24h)
+    for (let daysAgo = 58; daysAgo >= 0; daysAgo -= 1) {
+      const wave = ((daysAgo * 7 + 3) % 11);
+      if (daysAgo > 13 && wave % 3 === 0) continue; // realistic idle rest days in older weeks
+      const slots = daysAgo === 0 ? [0, 1, 2, 4, 6, 9] : daysAgo <= 6 ? [10, 14, 19, 21] : [11, 16, 20];
+      for (let sIdx = 0; sIdx < slots.length; sIdx += 1) {
+        let dt;
+        if (daysAgo === 0) {
+          dt = new Date(now.getTime() - slots[sIdx] * 3600 * 1000);
+        } else {
+          dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysAgo, slots[sIdx], 15, 0);
+        }
+        const sp = specs[(daysAgo + sIdx) % specs.length];
+        const factor = daysAgo <= 6 ? (0.75 + ((daysAgo * 5 + sIdx * 3) % 9) * 0.14) : (0.45 + ((daysAgo + sIdx) % 5) * 0.16);
+        const callCnt = Math.max(2, Math.round((daysAgo <= 6 ? 7 : 4) * factor));
+        const failCnt = ((daysAgo + sIdx) % 13 === 0) ? 1 : 0;
+        const okCnt = Math.max(1, callCnt - failCnt);
+        const inTok = Math.round(sp.baseIn * factor * (callCnt / 5));
+        const crTok = Math.round(inTok * sp.hitRatio);
+        const cwTok = Math.round(inTok * sp.cwRatio);
+        const outTok = Math.max(420, Math.round(inTok * sp.outRatio));
+        const ttftAvg = sp.ttft + ((daysAgo * 17 + sIdx * 29) % 180);
+        const tokSAvg = Math.round((sp.tokS + ((daysAgo * 11 + sIdx * 7) % 32) - 14) * 10) / 10;
+        const latAvg = Math.round(ttftAvg + ((outTok / Math.max(1, okCnt)) / Math.max(20, tokSAvg)) * 1000);
+
+        rows.push({
+          bucket_hour: fmtHourKey(dt),
+          profile_id: sp.profile_id,
+          profile_name: sp.profile_name,
+          model: sp.model,
+          session_id: sp.session_id,
+          calls: callCnt,
+          ok_calls: okCnt,
+          fail_calls: failCnt,
+          input_tokens: inTok,
+          cache_read_tokens: crTok,
+          cache_write_tokens: cwTok,
+          output_tokens: outTok,
+          latency_ms_sum: latAvg * callCnt,
+          ttft_ms_sum: ttftAvg * okCnt,
+          ttft_count: okCnt,
+          tok_s_sum: tokSAvg * okCnt,
+          tok_s_count: okCnt,
+        });
+      }
+    }
+
+    // Seed 18 detailed recent call logs for AI 引擎「调用日志」tab &「查看」deep-links
+    const samplePrompts = [
+      '探测目标注册页 DOM 表单与人机防护信号并输出选择器映射',
+      '审查 sites/acmespeech.py 的 REST 提 Key 步骤并校验状态码',
+      '排查 SliderSandbox OpenCV 滑块偏移并复测 1 号验收',
+      '从 HAR 抓包提炼注册协议端点与 Token 签发链路',
+      '生成高熵真实身份与单线程注册执行计划',
+    ];
+    for (let i = 0; i < 18; i += 1) {
+      const sp = specs[i % specs.length];
+      const dt = new Date(now.getTime() - (i * 22 + 3) * 60 * 1000);
+      const ok = i !== 7;
+      const inT = ok ? Math.round((sp.baseIn / 4.2) * (0.8 + (i % 5) * 0.14)) : 1240;
+      const crT = ok ? Math.round(inT * sp.hitRatio) : 0;
+      const cwT = ok ? Math.round(inT * sp.cwRatio) : 0;
+      const outT = ok ? Math.max(180, Math.round(inT * sp.outRatio)) : 0;
+      const hitPct = calcCacheHitPct(inT, crT);
+      const ttft = sp.ttft + (i % 6) * 45;
+      const tokS = ok ? Math.round((sp.tokS + ((i % 4) - 1) * 9.5) * 10) / 10 : 0;
+      const lat = ok ? Math.round(ttft + (outT / Math.max(20, tokS)) * 1000) : 1850;
+      const cid = `call_demo_${1000 + i}`;
+      const tsHms = `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}:${pad2(dt.getSeconds())}`;
+      calls.push({
+        id: cid,
+        ts: tsHms,
+        created_at: `${fmtDateYmd(dt)} ${tsHms}`,
+        session_id: sp.session_id,
+        profile_id: sp.profile_id,
+        profile_name: sp.profile_name,
+        format: sp.format,
+        model: sp.model,
+        ok,
+        status: ok ? 'ok' : 'error',
+        latency_ms: lat,
+        ttft_ms: ttft,
+        tok_s: tokS,
+        input_tokens: inT,
+        output_tokens: outT,
+        prompt_tokens: inT,
+        completion_tokens: outT,
+        total_tokens: inT + outT,
+        cache_read_tokens: crT,
+        cache_write_tokens: cwT,
+        cache_hit_pct: Math.round(hitPct),
+        context_tokens: inT,
+        error: ok ? '' : 'HTTP 429: Upstream rate limit (演示模拟报错)',
+        has_bodies: true,
+        request_body: {
+          model: sp.model,
+          stream: true,
+          messages: [
+            { role: 'system', content: '你是 RegisterHub 自主注册工程师 AI 代理（演示模拟请求体）' },
+            { role: 'user', content: samplePrompts[i % samplePrompts.length] },
+          ],
+        },
+        response_body: ok
+          ? {
+              content: `已完成第 ${i + 1} 步分析与工具校验，输入缓存命中 ${Math.round(hitPct)}%（演示模拟响应体）。`,
+              usage: { prompt_tokens: inT, completion_tokens: outT, cache_read_tokens: crT, cache_write_tokens: cwT },
+            }
+          : { error: { message: 'Upstream rate limit (演示模拟)' } },
+      });
+    }
+
+    state.usageRows = rows;
+    state.llmCalls = calls;
+  }
+
+  function recordDemoUsageCall({ profileId, model, sessionId, inputTokens, outputTokens, cacheReadTokens, ttftMs, tokS, latencyMs, promptPreview }) {
+    const now = new Date();
+    const prof = state.llmProfiles.find((p) => p.id === (profileId || state.activeLlmId)) || state.llmProfiles[0];
+    const pid = prof?.id || 'community_deepseek';
+    const pname = prof?.name || '多模型聚合演示通道 (Demo)';
+    const fmt = prof?.format || 'openai';
+    const m = model || prof?.model || 'gpt-5.4-mini';
+    const inT = Math.max(1, Number(inputTokens) || 1840);
+    const outT = Math.max(1, Number(outputTokens) || 460);
+    const crT = Math.min(inT, Math.max(0, Number(cacheReadTokens) || 0));
+    const ttft = Number(ttftMs) || 380;
+    const speed = Number(tokS) || 164.8;
+    const lat = Number(latencyMs) || 2600;
+
+    state.usageRows.push({
+      bucket_hour: fmtHourKey(now),
+      profile_id: pid,
+      profile_name: pname,
+      model: m,
+      session_id: sessionId || '',
+      calls: 1,
+      ok_calls: 1,
+      fail_calls: 0,
+      input_tokens: inT,
+      cache_read_tokens: crT,
+      cache_write_tokens: 0,
+      output_tokens: outT,
+      latency_ms_sum: lat,
+      ttft_ms_sum: ttft,
+      ttft_count: 1,
+      tok_s_sum: speed,
+      tok_s_count: 1,
+    });
+    const tsHms = nowTime();
+    state.llmCalls.unshift({
+      id: `call_demo_live_${Date.now()}`,
+      ts: tsHms,
+      created_at: `${fmtDateYmd(now)} ${tsHms}`,
+      session_id: sessionId || '',
+      profile_id: pid,
+      profile_name: pname,
+      format: fmt,
+      model: m,
+      ok: true,
+      status: 'ok',
+      latency_ms: lat,
+      ttft_ms: ttft,
+      tok_s: speed,
+      input_tokens: inT,
+      output_tokens: outT,
+      prompt_tokens: inT,
+      completion_tokens: outT,
+      total_tokens: inT + outT,
+      cache_read_tokens: crT,
+      cache_write_tokens: 0,
+      cache_hit_pct: Math.round(calcCacheHitPct(inT, crT)),
+      context_tokens: inT,
+      error: '',
+      has_bodies: true,
+      request_body: { model: m, messages: [{ role: 'user', content: String(promptPreview || '').slice(0, 200) }] },
+      response_body: { content: '演示模拟实时响应已记录至小时用量账本。', usage: { prompt_tokens: inT, completion_tokens: outT, cache_read_tokens: crT } },
+    });
+  }
+
+  function queryDemoUsage(searchParams) {
+    const rawRk = String(searchParams.get('range') || '7d').trim().toLowerCase();
+    const rk = ['24h', '7d', '30d', '90d', 'all'].includes(rawRk) ? rawRk : '7d';
+    const rawGran = String(searchParams.get('granularity') || 'auto').trim().toLowerCase();
+    const gran = ['auto', 'hour', 'day'].includes(rawGran) ? rawGran : 'auto';
+    const pidFilter = String(searchParams.get('profile_id') || '').trim();
+    const modelFilter = String(searchParams.get('model') || '').trim();
+
+    const now = new Date();
+    const todayYmd = fmtDateYmd(now);
+    let sinceHour = '';
+    let effGran = 'day';
+    if (rk === '24h') {
+      const sd = new Date(now.getTime() - 23 * 3600 * 1000);
+      sinceHour = fmtHourKey(sd);
+      effGran = gran === 'auto' ? 'hour' : gran;
+    } else if (rk === '7d') {
+      const sd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
+      sinceHour = fmtHourKey(sd);
+      effGran = gran === 'auto' ? 'day' : gran;
+    } else if (rk === '30d') {
+      const sd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
+      sinceHour = fmtHourKey(sd);
+      effGran = 'day';
+    } else if (rk === '90d') {
+      const sd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 89, 0, 0, 0);
+      sinceHour = fmtHourKey(sd);
+      effGran = 'day';
+    } else {
+      sinceHour = '';
+      effGran = gran === 'auto' ? 'day' : gran;
+    }
+
+    const pmeta = {};
+    for (const p of state.llmProfiles) pmeta[p.id] = p;
+    const profileOptsMap = new Map();
+    const modelOptsSet = new Set();
+    let allHourlyTokens = 0;
+
+    for (const r of state.usageRows) {
+      allHourlyTokens += (Number(r.input_tokens) || 0) + (Number(r.output_tokens) || 0);
+      if (r.profile_id) {
+        profileOptsMap.set(r.profile_id, (pmeta[r.profile_id]?.name) || r.profile_name || r.profile_id);
+      }
+      if (r.model) modelOptsSet.add(r.model);
+    }
+
+    const facetRows = state.usageRows.filter((r) => {
+      if (pidFilter && (r.profile_id || r.profile_name || 'unknown') !== pidFilter) return false;
+      if (modelFilter && r.model !== modelFilter) return false;
+      return true;
+    });
+    const windowRows = facetRows.filter((r) => !sinceHour || r.bucket_hour >= sinceHour);
+
+    const summaryAgg = emptyUsageAgg();
+    const todayAgg = emptyUsageAgg();
+    const seriesMap = new Map();
+    const modelMap = new Map();
+    const modelMeta = new Map();
+    const profileMap = new Map();
+    const profileInfo = new Map();
+    const sessionWinMap = new Map();
+
+    const getOrInit = (m, k) => {
+      if (!m.has(k)) m.set(k, emptyUsageAgg());
+      return m.get(k);
+    };
+
+    for (const r of windowRows) {
+      const ci = estimateDemoCost(r.model, r.input_tokens, r.cache_read_tokens, r.cache_write_tokens, r.output_tokens);
+      accumUsageRow(summaryAgg, r, ci);
+      const bday = r.bucket_hour.slice(0, 10);
+      if (bday === todayYmd) accumUsageRow(todayAgg, r, ci);
+      const bkey = effGran === 'hour' ? r.bucket_hour : bday;
+      accumUsageRow(getOrInit(seriesMap, bkey), r, ci);
+      accumUsageRow(getOrInit(modelMap, r.model), r, ci);
+      if (!modelMeta.has(r.model)) modelMeta.set(r.model, { pricing_tier: ci.tier, pricing_matched: ci.matched });
+
+      const pkey = r.profile_id || r.profile_name || 'unknown';
+      accumUsageRow(getOrInit(profileMap, pkey), r, ci);
+      if (!profileInfo.has(pkey)) {
+        const pm = pmeta[pkey] || {};
+        profileInfo.set(pkey, {
+          profile_id: r.profile_id || '',
+          profile_name: pm.name || r.profile_name || pkey,
+          format: pm.format || 'openai',
+          base_url: pm.base_url || '',
+          icon_url: pm.icon_url || '',
+          models: new Set(),
+        });
+      }
+      profileInfo.get(pkey).models.add(r.model);
+      if (r.session_id) accumUsageRow(getOrInit(sessionWinMap, r.session_id), r, ci);
+    }
+
+    const seriesOut = [];
+    if (effGran === 'hour') {
+      const hCount = rk === '24h' ? 24 : rk === '7d' ? 168 : 48;
+      const startH = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() - (hCount - 1), 0, 0);
+      for (let i = 0; i < hCount; i += 1) {
+        const cur = new Date(startH.getTime() + i * 3600 * 1000);
+        const key = fmtHourKey(cur);
+        const lbl = rk === '24h' ? `${pad2(cur.getHours())}:00` : `${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())} ${pad2(cur.getHours())}:00`;
+        seriesOut.push({ bucket: key, label: lbl, ...finalizeUsageAgg(seriesMap.get(key) || emptyUsageAgg()) });
+      }
+    } else {
+      let dCount = 7;
+      if (rk === '30d') dCount = 30;
+      else if (rk === '90d') dCount = 90;
+      else if (rk === '24h') dCount = 2;
+      else if (rk === 'all') dCount = 60;
+      for (let i = dCount - 1; i >= 0; i -= 1) {
+        const cur = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+        const key = fmtDateYmd(cur);
+        const lbl = `${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`;
+        seriesOut.push({ bucket: key, label: lbl, ...finalizeUsageAgg(seriesMap.get(key) || emptyUsageAgg()) });
+      }
+    }
+
+    const heatmapMode = rk === '24h' ? 'hourly' : 'daily';
+    const heatmapCells = [];
+    if (heatmapMode === 'hourly') {
+      const startH = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() - 23, 0, 0);
+      const cut = fmtHourKey(startH);
+      const hmMap = new Map();
+      for (const r of facetRows) {
+        if (r.bucket_hour >= cut) {
+          const ci = estimateDemoCost(r.model, r.input_tokens, r.cache_read_tokens, r.cache_write_tokens, r.output_tokens);
+          accumUsageRow(getOrInit(hmMap, r.bucket_hour), r, ci);
+        }
+      }
+      for (let i = 0; i < 24; i += 1) {
+        const cur = new Date(startH.getTime() + i * 3600 * 1000);
+        const hk = fmtHourKey(cur);
+        const fin = finalizeUsageAgg(hmMap.get(hk) || emptyUsageAgg());
+        heatmapCells.push({
+          key: hk,
+          date: `${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())} ${pad2(cur.getHours())}:00`,
+          short_label: pad2(cur.getHours()),
+          total_tokens: fin.total_tokens,
+          calls: fin.calls,
+          cache_hit_pct: fin.cache_hit_pct,
+          estimated_cost_usd: fin.estimated_cost_usd,
+        });
+      }
+    } else {
+      const daysN = 84;
+      const startD = new Date(now.getFullYear(), now.getMonth(), now.getDate() - (daysN - 1));
+      const cutDay = fmtDateYmd(startD);
+      const hmMap = new Map();
+      for (const r of facetRows) {
+        const bd = r.bucket_hour.slice(0, 10);
+        if (bd >= cutDay) {
+          const ci = estimateDemoCost(r.model, r.input_tokens, r.cache_read_tokens, r.cache_write_tokens, r.output_tokens);
+          accumUsageRow(getOrInit(hmMap, bd), r, ci);
+        }
+      }
+      for (let i = 0; i < daysN; i += 1) {
+        const cur = new Date(startD.getFullYear(), startD.getMonth(), startD.getDate() + i);
+        const dk = fmtDateYmd(cur);
+        const fin = finalizeUsageAgg(hmMap.get(dk) || emptyUsageAgg());
+        heatmapCells.push({
+          key: dk,
+          date: dk,
+          short_label: `${pad2(cur.getMonth() + 1)}-${pad2(cur.getDate())}`,
+          weekday: (cur.getDay() + 6) % 7,
+          total_tokens: fin.total_tokens,
+          calls: fin.calls,
+          cache_hit_pct: fin.cache_hit_pct,
+          estimated_cost_usd: fin.estimated_cost_usd,
+        });
+      }
+    }
+    const levels = computeHeatmapLevels(heatmapCells.map((c) => c.total_tokens));
+    heatmapCells.forEach((c, idx) => { c.level = levels[idx]; });
+
+    const summaryFin = finalizeUsageAgg(summaryAgg);
+    const todayFin = finalizeUsageAgg(todayAgg);
+    const grandTok = Math.max(1, summaryFin.total_tokens);
+
+    const byModel = Array.from(modelMap.entries()).map(([mname, agg]) => {
+      const fin = finalizeUsageAgg(agg);
+      const mm = modelMeta.get(mname) || {};
+      return {
+        model: mname,
+        share_pct: summaryFin.total_tokens > 0 ? Math.round((fin.total_tokens / grandTok) * 1000) / 10 : 0,
+        pricing_tier: mm.pricing_tier || '未知',
+        pricing_matched: Boolean(mm.pricing_matched),
+        ...fin,
+      };
+    }).sort((a, b) => (b.total_tokens - a.total_tokens) || (b.calls - a.calls));
+
+    const byProfile = Array.from(profileMap.entries()).map(([pkey, agg]) => {
+      const fin = finalizeUsageAgg(agg);
+      const pi = profileInfo.get(pkey) || {};
+      return {
+        profile_key: pkey,
+        profile_id: pi.profile_id || '',
+        profile_name: pi.profile_name || pkey,
+        format: pi.format || 'openai',
+        base_url: pi.base_url || '',
+        icon_url: pi.icon_url || '',
+        models_count: pi.models ? pi.models.size : 0,
+        share_pct: summaryFin.total_tokens > 0 ? Math.round((fin.total_tokens / grandTok) * 1000) / 10 : 0,
+        ...fin,
+      };
+    }).sort((a, b) => (b.total_tokens - a.total_tokens) || (b.calls - a.calls));
+
+    const bySession = [];
+    const seenSids = new Set();
+    let ltIn = 0, ltOut = 0, ltCr = 0, ltCw = 0, ltCost = 0, ltSaved = 0;
+
+    for (const s of state.agentSessions) {
+      const winAgg = sessionWinMap.get(s.id);
+      if (pidFilter && !winAgg && s.llm_profile_id !== pidFilter) continue;
+      if (modelFilter && !winAgg && (s.model || s.llm_model) !== modelFilter) continue;
+      seenSids.add(s.id);
+      const winFin = winAgg ? finalizeUsageAgg(winAgg) : null;
+      const baseIn = Math.max(Number(s.input_tokens) || 0, winFin ? winFin.input_tokens : 0);
+      const baseCr = Math.max(Number(s.cache_read_tokens) || 0, winFin ? winFin.cache_read_tokens : 0);
+      const baseCw = winFin ? winFin.cache_write_tokens : 0;
+      const baseOut = Math.max(Number(s.output_tokens) || 0, winFin ? winFin.output_tokens : 0);
+      const sp = splitDemoTokens(baseIn, baseCr, baseCw, baseOut);
+      const sModel = s.model || s.llm_model || 'deepseek-v4.1-flash-1017';
+      const sCost = estimateDemoCost(sModel, sp.input, sp.cacheRead, sp.cacheWrite, sp.output);
+      ltIn += sp.input; ltOut += sp.output; ltCr += sp.cacheRead; ltCw += sp.cacheWrite;
+      ltCost += sCost.cost_usd; ltSaved += sCost.saved_usd;
+      bySession.push({
+        session_id: s.id,
+        title: s.title || '未命名会话',
+        status: s.status || 'done',
+        target_url: s.target_url || '',
+        model: sModel,
+        steps_count: Math.max(Number(s.steps_count) || 0, winFin ? winFin.calls : 0),
+        updated_at: s.updated_at || '',
+        created_at: s.created_at || '',
+        input_tokens: sp.input,
+        uncached_input_tokens: sp.uncached,
+        cache_read_tokens: sp.cacheRead,
+        cache_write_tokens: sp.cacheWrite,
+        output_tokens: sp.output,
+        total_tokens: sp.total,
+        cache_hit_pct: calcCacheHitPct(sp.input, sp.cacheRead),
+        estimated_cost_usd: Math.round(sCost.cost_usd * 10000) / 10000,
+        cache_saved_usd: Math.round(sCost.saved_usd * 10000) / 10000,
+        window_calls: winFin ? winFin.calls : 0,
+        window_total_tokens: winFin ? winFin.total_tokens : 0,
+        has_pruned_history: false,
+      });
+    }
+    for (const [sid, agg] of sessionWinMap.entries()) {
+      if (seenSids.has(sid)) continue;
+      const fin = finalizeUsageAgg(agg);
+      ltIn += fin.input_tokens; ltOut += fin.output_tokens; ltCr += fin.cache_read_tokens; ltCw += fin.cache_write_tokens;
+      ltCost += fin.estimated_cost_usd; ltSaved += fin.cache_saved_usd;
+      bySession.push({
+        session_id: sid,
+        title: sid === 'ag_demo_novaapi' ? 'NovaAPI Turnstile 协议试跑 (归档)' : `已归档会话 (${sid.slice(-6)})`,
+        status: 'archived',
+        target_url: sid === 'ag_demo_novaapi' ? 'https://portal.nova-api.example.com/signup' : '',
+        model: 'gemini-2.5-flash',
+        steps_count: fin.calls,
+        updated_at: todayYmd,
+        created_at: todayYmd,
+        input_tokens: fin.input_tokens,
+        uncached_input_tokens: fin.uncached_input_tokens,
+        cache_read_tokens: fin.cache_read_tokens,
+        cache_write_tokens: fin.cache_write_tokens,
+        output_tokens: fin.output_tokens,
+        total_tokens: fin.total_tokens,
+        cache_hit_pct: fin.cache_hit_pct,
+        estimated_cost_usd: fin.estimated_cost_usd,
+        cache_saved_usd: fin.cache_saved_usd,
+        window_calls: fin.calls,
+        window_total_tokens: fin.total_tokens,
+        has_pruned_history: false,
+      });
+    }
+    bySession.sort((a, b) => (b.total_tokens - a.total_tokens) || (b.window_total_tokens - a.window_total_tokens));
+
+    return {
+      range: rk,
+      granularity: effGran,
+      generated_at: nowDateTime(),
+      summary: {
+        ...summaryFin,
+        today_tokens: todayFin.total_tokens,
+        today_calls: todayFin.calls,
+        today_cost_usd: todayFin.estimated_cost_usd,
+        models_count: byModel.length,
+        profiles_count: byProfile.length,
+        sessions_count: bySession.length,
+      },
+      session_lifetime: {
+        sessions_count: bySession.length,
+        input_tokens: ltIn,
+        output_tokens: ltOut,
+        cache_read_tokens: ltCr,
+        cache_write_tokens: ltCw,
+        total_tokens: ltIn + ltOut,
+        cache_hit_pct: calcCacheHitPct(ltIn, ltCr),
+        estimated_cost_usd: Math.round(ltCost * 10000) / 10000,
+        cache_saved_usd: Math.round(ltSaved * 10000) / 10000,
+        has_older_pruned: Boolean(!pidFilter && !modelFilter && (ltIn + ltOut) > allHourlyTokens * 1.05),
+      },
+      series: seriesOut,
+      heatmap: { mode: heatmapMode, cells: heatmapCells },
+      by_model: byModel,
+      by_profile: byProfile,
+      by_session: bySession.slice(0, 25),
+      filters: {
+        profiles: Array.from(profileOptsMap.entries()).map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+        models: Array.from(modelOptsSet).sort((a, b) => a.localeCompare(b)),
+      },
+      pricing_note: '费用按各模型公开标价参考估算（免费模型计 $0，中转/自建渠道请以实际账单为准 · 演示模拟数据）',
+    };
+  }
+
+  function getDemoDashboardLlmKpi() {
+    const rep = queryDemoUsage(new URLSearchParams('range=7d'));
+    return {
+      llm_tokens_7d: rep.summary.total_tokens,
+      llm_tokens_today: rep.summary.today_tokens,
+      llm_cache_hit_pct: rep.summary.cache_hit_pct,
+      llm_calls_7d: rep.summary.calls,
+      llm_cost_7d_usd: rep.summary.estimated_cost_usd,
+      llm_saved_7d_usd: rep.summary.cache_saved_usd,
+    };
+  }
+
+  seedDemoUsage();
 
   function jobSummary(j) {
     return {
@@ -1044,6 +1718,18 @@
           ts: nowDateTime(),
         };
         sess.messages.push(asstMsg);
+        recordDemoUsageCall({
+          profileId: sess.llm_profile_id || state.activeLlmId,
+          model: sess.llm_model || 'deepseek-v4.1-flash-1017',
+          sessionId: sess.id,
+          inputTokens: 1840,
+          outputTokens: 460,
+          cacheReadTokens: 1480,
+          ttftMs: 380,
+          tokS: 164.8,
+          latencyMs: 2800,
+          promptPreview: content,
+        });
         sess.status = 'done';
         state.activeAgentSid = '';
         pushAgentEvent(sess, { type: 'plan', plan_steps: sess.plan_steps, steps: sess.plan_steps });
@@ -1075,6 +1761,7 @@
           avg_duration_s: 11.3,
           today_ok: todayBar.success,
           today_failed: todayBar.failed,
+          ...getDemoDashboardLlmKpi(),
         },
         daily_trend: state.dailyTrend,
         key_distribution: keyDist,
@@ -1811,8 +2498,19 @@
     if (method === 'POST' && path === '/api/llm/models') {
       return jsonResponse({ ok: true, models: ['gpt-5.4-mini', 'gpt-5.4', 'claude-sonnet-4-6', 'claude-opus-4-6', 'deepseek-v4.1-flash-1017', 'deepseek-reasoner', 'gemini-2.5-flash', 'qwen3-coder-plus', 'gpt-4o-mini'] });
     }
+    if (method === 'GET' && path === '/api/llm/usage') {
+      return jsonResponse(queryDemoUsage(searchParams));
+    }
     if (method === 'GET' && path === '/api/llm/calls') {
-      return jsonResponse({ ok: true, calls: [], total: 0 });
+      const lim = Math.max(1, Math.min(500, Number(searchParams.get('limit') || 200)));
+      return jsonResponse({ ok: true, calls: state.llmCalls.slice(0, lim), total: state.llmCalls.length });
+    }
+    const mCallId = path.match(/^\/api\/llm\/calls\/([^/]+)$/);
+    if (method === 'GET' && mCallId) {
+      const cid = decodeURIComponent(mCallId[1]);
+      const hit = state.llmCalls.find((c) => c.id === cid);
+      if (!hit) return jsonResponse({ ok: false, error: 'Call log not found' }, 404);
+      return jsonResponse({ ok: true, call: hit });
     }
     if (method === 'GET' && path === '/api/llm/magpie/status') return jsonResponse({ available: false, providers: [] });
 
