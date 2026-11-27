@@ -532,25 +532,30 @@
     llmProfiles: [
       {
         id: 'community_deepseek',
-        name: 'DeepSeek V4.1 (演示通道)',
+        name: '多模型聚合演示通道 (Demo)',
         format: 'openai',
-        model: 'deepseek-chat',
-        base_url: 'https://api.deepseek.com/v1',
+        model: 'gpt-5.4-mini',
+        base_url: 'https://api.demo-relay.example/v1',
         proxy_url: '',
-        api_key_hint: 'sk-de...demo',
+        api_key_hint: 'sk-rh...demo',
         has_key: true,
         max_tokens: 4096,
         max_tokens_field: 'max_tokens',
         temperature: 0.2,
         priority: 1,
-        context_window_k: 128,
-        thinking_mode: 'enabled',
-        reasoning_effort: 'medium',
+        context_window_k: 1000,
+        model_context_windows: {},
+        model_reasoning_caps: {},
+        thinking_mode: 'none',
+        reasoning_effort: 'none',
         streaming: true,
         active: true,
         enabled: true,
-        pinned_models: ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o-mini'],
-        catalog_models: ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o-mini', 'claude-sonnet-4', 'gemini-2.5-flash', 'qwen3-coder-plus'],
+        key_count: 1,
+        healthy_key_count: 1,
+        key_pool: [{ id: 'k_demo_1', key_hint: 'sk-rh...demo', state: 'ok', fails: 0 }],
+        pinned_models: ['gpt-5.4-mini', 'claude-sonnet-4-6', 'deepseek-v4.1-flash-1017', 'gemini-2.5-flash', 'gpt-4o-mini'],
+        catalog_models: ['gpt-5.4-mini', 'gpt-5.4', 'claude-sonnet-4-6', 'claude-opus-4-6', 'deepseek-v4.1-flash-1017', 'deepseek-reasoner', 'gemini-2.5-flash', 'qwen3-coder-plus', 'gpt-4o-mini'],
         health: { status: 'ok', state: 'ok', last_latency_ms: 196 },
       },
     ],
@@ -587,8 +592,9 @@
         status: 'done',
         target_url: 'https://console.acmespeech.example.com/signup',
         llm_profile_id: 'community_deepseek',
-        llm_model: 'deepseek-chat',
-        model: 'deepseek-chat',
+        llm_model: 'gpt-5.4-mini',
+        llm_reasoning_effort: '',
+        model: 'gpt-5.4-mini',
         steps_count: 4,
         input_tokens: 4820,
         output_tokens: 1140,
@@ -647,8 +653,9 @@
         status: 'done',
         target_url: 'https://auth.slidersandbox.example.com/register',
         llm_profile_id: 'community_deepseek',
-        llm_model: 'deepseek-chat',
-        model: 'deepseek-chat',
+        llm_model: 'gpt-5.4-mini',
+        llm_reasoning_effort: '',
+        model: 'gpt-5.4-mini',
         steps_count: 3,
         input_tokens: 3190,
         output_tokens: 740,
@@ -709,6 +716,7 @@
       target_url: s.target_url,
       llm_profile_id: s.llm_profile_id,
       llm_model: s.llm_model,
+      llm_reasoning_effort: s.llm_reasoning_effort || '',
       model: s.model,
       steps_count: s.steps_count,
       message_count: s.messages.length,
@@ -1679,6 +1687,105 @@
       state.llmProfiles.push(np);
       return jsonResponse({ ok: true, profile: np });
     }
+    const mProfProbeReason = path.match(/^\/api\/llm\/profiles\/([^/]+)\/probe-reasoning$/);
+    if (method === 'POST' && mProfProbeReason) {
+      const pid = decodeURIComponent(mProfProbeReason[1]);
+      const prof = state.llmProfiles.find((p) => p.id === pid);
+      if (!prof) return jsonResponse({ ok: false, error: `供应商不存在: ${pid}` }, 404);
+      const targetModel = String(body?.model || prof.model || 'gpt-5.4-mini').trim();
+      const force = Boolean(body?.force);
+      prof.model_reasoning_caps = prof.model_reasoning_caps || {};
+      if (!force && prof.model_reasoning_caps[targetModel]) {
+        return jsonResponse({ ok: true, cached: true, profile_id: pid, model: targetModel, capability: prof.model_reasoning_caps[targetModel] });
+      }
+      const ml = targetModel.toLowerCase();
+      const nowSec = Math.floor(Date.now() / 1000);
+      let cap;
+      if (/gpt-5\.4|gpt-5\.3|gpt-5\.2|gpt-6/.test(ml)) {
+        cap = {
+          status: 'verified', mode: 'graded', control_type: 'levels', vendor: 'openai',
+          supported_levels: ['off', 'low', 'medium', 'high', 'xhigh', 'max'], rejected_levels: [],
+          wire_style: 'reasoning_effort', summary: '实测分档生效（low→max: 24→96 tok · 演示模拟）',
+          samples: {}, probed_at: nowSec,
+        };
+      } else if (/claude-opus-4-6|claude-opus-4\.6/.test(ml)) {
+        cap = {
+          status: 'verified', mode: 'graded', control_type: 'levels', vendor: 'anthropic',
+          supported_levels: ['off', 'low', 'medium', 'high', 'max'], rejected_levels: [],
+          wire_style: 'reasoning_effort', summary: '实测分档生效（low→max: 28→88 tok · 演示模拟）',
+          samples: {}, probed_at: nowSec,
+        };
+      } else if (/claude-(sonnet|haiku|opus)/.test(ml)) {
+        cap = {
+          status: 'verified', mode: 'toggle', control_type: 'levels', vendor: 'anthropic',
+          supported_levels: ['off', 'low', 'medium', 'high'], rejected_levels: [],
+          wire_style: 'reasoning_effort', summary: '实测开关/高档激活思考（low 无思考 → high 触发思考 · 演示模拟）',
+          samples: {}, probed_at: nowSec,
+        };
+      } else if (/gemini-2\.5|gemini-3/.test(ml)) {
+        cap = {
+          status: 'verified', mode: 'graded', control_type: 'levels', vendor: 'google',
+          supported_levels: ml.includes('pro') ? ['low', 'medium', 'high'] : ['off', 'low', 'medium', 'high'],
+          rejected_levels: [], wire_style: 'reasoning_effort',
+          summary: '实测分档生效（low→high: 18→64 tok · 演示模拟）', samples: {}, probed_at: nowSec,
+        };
+      } else if (/deepseek|qwen3|glm-5|glm-4\.5|kimi-k2/.test(ml)) {
+        cap = {
+          status: 'accepted', mode: 'fixed', control_type: 'toggle',
+          vendor: ml.includes('qwen') ? 'qwen' : ml.includes('glm') ? 'zhipu' : 'deepseek',
+          supported_levels: ['off', 'on'], rejected_levels: [],
+          wire_style: 'reasoning_effort', summary: '接口接收参数，但当前渠道思考量无变化（固定思考 · 演示模拟）',
+          samples: {}, probed_at: nowSec,
+        };
+      } else if (/^o[134]/.test(ml)) {
+        cap = {
+          status: 'verified', mode: 'graded', control_type: 'levels', vendor: 'openai',
+          supported_levels: ['low', 'medium', 'high'], rejected_levels: [],
+          wire_style: 'reasoning_effort', summary: '实测分档生效（low→high: 20→68 tok · 演示模拟）',
+          samples: {}, probed_at: nowSec,
+        };
+      } else {
+        cap = {
+          status: 'unsupported', mode: 'rejected', control_type: 'none', vendor: 'openai',
+          supported_levels: [], rejected_levels: [], wire_style: 'none',
+          summary: '该模型为非推理模型，无思考档位', samples: {}, probed_at: nowSec,
+        };
+      }
+      prof.model_reasoning_caps[targetModel] = cap;
+      return jsonResponse({ ok: true, cached: false, profile_id: pid, model: targetModel, capability: cap });
+    }
+    const mProfExport = path.match(/^\/api\/llm\/profiles\/([^/]+)\/export-credentials$/);
+    if (method === 'POST' && mProfExport) {
+      const pid = decodeURIComponent(mProfExport[1]);
+      const prof = state.llmProfiles.find((p) => p.id === pid);
+      if (!prof) return jsonResponse({ ok: false, error: `供应商不存在: ${pid}` }, 404);
+      const demoKey = 'sk-rh-demo-00000000000000000000000000demo';
+      if (body?.key_id) return jsonResponse({ ok: true, id: pid, key_id: body.key_id, key: demoKey });
+      return jsonResponse({
+        ok: true, id: pid, name: prof.name, format: prof.format || 'openai',
+        base_url: prof.base_url, model: prof.model, keys: [demoKey], key_count: 1,
+      });
+    }
+    const mProfKeys = path.match(/^\/api\/llm\/profiles\/([^/]+)\/keys$/);
+    if (method === 'POST' && mProfKeys) {
+      const pid = decodeURIComponent(mProfKeys[1]);
+      const prof = state.llmProfiles.find((p) => p.id === pid);
+      if (!prof) return jsonResponse({ ok: false, error: `供应商不存在: ${pid}` }, 404);
+      prof.key_pool = Array.isArray(prof.key_pool) ? prof.key_pool : [];
+      const act = String(body?.action || 'add').toLowerCase();
+      if (act === 'add') {
+        const list = Array.isArray(body?.keys) ? body.keys : (body?.key ? [body.key] : []);
+        list.forEach((k) => {
+          const s = String(k || '').trim();
+          if (s) prof.key_pool.push({ id: `k_${randHex(4)}`, key_hint: maskKey(s), state: 'ok', fails: 0 });
+        });
+      } else if (act === 'remove' && body?.key_id) {
+        prof.key_pool = prof.key_pool.filter((k) => k.id !== body.key_id);
+      }
+      prof.key_count = prof.key_pool.length;
+      prof.healthy_key_count = prof.key_pool.length;
+      return jsonResponse({ ok: true, added: 1, removed: 0, profile: prof });
+    }
     const mProf = path.match(/^\/api\/llm\/profiles\/([^/]+)(?:\/(test|activate))?$/);
     if (mProf) {
       const pid = decodeURIComponent(mProf[1]);
@@ -1702,7 +1809,7 @@
       }
     }
     if (method === 'POST' && path === '/api/llm/models') {
-      return jsonResponse({ ok: true, models: ['deepseek-chat', 'deepseek-reasoner', 'gpt-4o-mini', 'gpt-4.1', 'claude-sonnet-4', 'gemini-2.5-flash', 'qwen3-coder-plus'] });
+      return jsonResponse({ ok: true, models: ['gpt-5.4-mini', 'gpt-5.4', 'claude-sonnet-4-6', 'claude-opus-4-6', 'deepseek-v4.1-flash-1017', 'deepseek-reasoner', 'gemini-2.5-flash', 'qwen3-coder-plus', 'gpt-4o-mini'] });
     }
     if (method === 'GET' && path === '/api/llm/calls') {
       return jsonResponse({ ok: true, calls: [], total: 0 });
@@ -1738,15 +1845,44 @@
     }
     if (method === 'POST' && path === '/api/agent/sessions') {
       const sid = `ag_demo_${randHex(6)}`;
+      const activeProf = state.llmProfiles.find((p) => p.id === (body?.llm_profile_id || state.activeLlmId)) || state.llmProfiles[0];
+      const mod = String(body?.llm_model || activeProf?.model || 'gpt-5.4-mini');
       const s = {
         id: sid, title: body?.title || `新注册任务会话 ${state.agentSessions.length + 1}`,
-        status: 'idle', target_url: body?.target_url || '', llm_profile_id: state.activeLlmId,
-        llm_model: 'deepseek-chat', model: 'deepseek-chat', steps_count: 0, input_tokens: 0, output_tokens: 0,
+        status: 'idle', target_url: body?.target_url || '', llm_profile_id: body?.llm_profile_id || state.activeLlmId,
+        llm_model: mod, llm_reasoning_effort: String(body?.llm_reasoning_effort || ''), model: mod,
+        steps_count: 0, input_tokens: 0, output_tokens: 0,
         last_seq: 0, created_at: nowDateTime().slice(0, 16), updated_at: nowDateTime().slice(0, 16),
         plan_steps: [], usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 }, messages: [], events: [],
       };
       state.agentSessions.unshift(s);
       return jsonResponse({ ok: true, session: s });
+    }
+    if (method === 'POST' && path === '/api/agent/sessions/import-handoff') {
+      const md = String(body?.markdown || '').trim();
+      if (!md) return jsonResponse({ ok: false, error: '接力单内容不能为空' }, 400);
+      const mTitle = md.match(/^#\s+(.+)$/m);
+      const mUrl = md.match(/https?:\/\/[^\s)>'"]+/);
+      const title = mTitle ? mTitle[1].slice(0, 60) : '导入的接力会话 (Demo)';
+      const url = mUrl ? mUrl[0] : 'https://example.com/signup';
+      const sid = `ag_handoff_${randHex(5)}`;
+      const s = {
+        id: sid, title, status: 'idle', target_url: url,
+        llm_profile_id: body?.llm_profile_id || state.activeLlmId,
+        llm_model: body?.llm_model || 'gpt-5.4-mini', llm_reasoning_effort: '', model: body?.llm_model || 'gpt-5.4-mini',
+        steps_count: 0, input_tokens: 0, output_tokens: 0, last_seq: 1,
+        created_at: nowDateTime().slice(0, 16), updated_at: nowDateTime().slice(0, 16),
+        plan_steps: [{ id: 'hp1', title: '按接力单上下文继续推进验证', status: 'pending' }],
+        usage: { input_tokens: 0, output_tokens: 0, total_tokens: 0 },
+        messages: [{ id: `m_h_${Date.now()}`, role: 'system', content: '已从脱敏接力单导入会话上下文（纯前端演示）。', ts: nowDateTime() }],
+        events: [],
+      };
+      state.agentSessions.unshift(s);
+      return jsonResponse({
+        ok: true, session: s,
+        parsed: { is_handoff: true, source_edition: 'community', status: 'in_progress', site_slug: 'demo_handoff', target_url: url, has_adapter_code: md.includes('```python'), suggested_title: title },
+        initial_prompt: '请基于导入的接力单继续推进。', started: false,
+      });
     }
     const mAgBase = path.match(/^\/api\/agent\/sessions\/([^/]+)$/);
     if (mAgBase) {
@@ -1756,14 +1892,57 @@
       const sess = state.agentSessions[idx];
       if (method === 'GET') return jsonResponse({ ok: true, session: sess });
       if (method === 'PATCH') {
+        let switched = false;
         if (body?.title) sess.title = String(body.title).slice(0, 80);
-        if (body?.llm_model !== undefined) sess.llm_model = body.llm_model === '__follow_profile__' ? 'deepseek-chat' : body.llm_model;
+        if (body?.llm_profile_id !== undefined) {
+          const nextP = body.llm_profile_id === '__follow_global__' ? state.activeLlmId : String(body.llm_profile_id || '');
+          if (nextP !== sess.llm_profile_id) { sess.llm_profile_id = nextP; switched = true; }
+        }
+        if (body?.llm_model !== undefined) {
+          const activeProf = state.llmProfiles.find((p) => p.id === (sess.llm_profile_id || state.activeLlmId)) || state.llmProfiles[0];
+          const nextM = body.llm_model === '__follow_profile__' ? (activeProf?.model || 'gpt-5.4-mini') : String(body.llm_model || '');
+          if (nextM !== sess.llm_model) { sess.llm_model = nextM; sess.model = nextM; switched = true; }
+        }
+        if (body?.llm_reasoning_effort !== undefined) {
+          sess.llm_reasoning_effort = String(body.llm_reasoning_effort || '').trim();
+        } else if (switched) {
+          sess.llm_reasoning_effort = '';
+        }
+        if (body?.target_url !== undefined) sess.target_url = String(body.target_url || '').trim();
+        if (body?.pinned !== undefined) sess.pinned = Boolean(body.pinned);
         return jsonResponse({ ok: true, session: agentSummary(sess) });
       }
       if (method === 'DELETE') {
         state.agentSessions.splice(idx, 1);
         return jsonResponse({ ok: true });
       }
+    }
+    const mAgShare = path.match(/^\/api\/agent\/sessions\/([^/]+)\/share$/);
+    if (method === 'POST' && mAgShare) {
+      const sess = state.agentSessions.find((x) => x.id === decodeURIComponent(mAgShare[1]));
+      if (!sess) return jsonResponse({ ok: false, error: 'Not found' }, 404);
+      const incCode = body?.include_code !== false;
+      const md = [
+        `# RegisterHub 脱敏接力单 · ${sess.title}`,
+        '',
+        `- 来源版本：community (Online Demo)`,
+        `- 目标入口：${sess.target_url || 'https://console.acmespeech.example.com/signup'}`,
+        `- 当前状态：已跑通（示例演示）`,
+        '',
+        '## 关键发现与协议链路',
+        '- 表单选择器：`#email` / `#new-password` / `button[type="submit"]`',
+        '- 认证与提 Key：邮件 6 位 OTP 校验后走 REST 接口直接签发 API Key',
+        ...(incCode ? ['', '## 适配器代码快照（已脱敏）', '```python', 'class AcmeSpeechAdapter(BaseSiteAdapter):', '    target_url = "https://console.acmespeech.example.com/signup"', '```'] : []),
+      ].join('\n');
+      return jsonResponse({
+        ok: true, markdown: md, filename: `${sess.id}.handoff.md`,
+        status: 'passed', status_label: '已跑通', site_slug: 'acmespeech',
+        target_url: sess.target_url || '', title: sess.title,
+        adapter_file: 'sites/acmespeech.py', has_adapter_code: incCode,
+        llm_refined: Boolean(body?.use_llm_refine),
+        redaction_stats: { secrets: 2, emails: 1, proxies: 0, paths: 0, accounts: 1, total: 4 },
+        char_count: md.length,
+      });
     }
     const mAgMsg = path.match(/^\/api\/agent\/sessions\/([^/]+)\/message$/);
     if (method === 'POST' && mAgMsg) {
