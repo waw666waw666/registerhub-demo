@@ -407,7 +407,7 @@
       edition: 'community',
       brand: 'RegisterHub',
       subtitle: '开源社区工作台',
-      version: '2.1.0',
+      version: '1.3.1',
       features: {
         fleet: true,
         materials: false,
